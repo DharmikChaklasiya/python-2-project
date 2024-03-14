@@ -19,7 +19,7 @@ def validate_images(
 
     # Prepare log file and its directory
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    with open(log_file, "w") as log:
+    with open(log_file, "w") as _:
         pass  # Just creating/resetting the log file
 
     valid_images_count = 0
@@ -40,31 +40,36 @@ def validate_images(
                 try:
                     # Rule 1: Check file extension
                     if not file.lower().endswith((".jpg", ".jpeg")):
-                        raise ValueError("Invalid file extension")
+                        raise ValueError(1)
 
                     # Rule 2: Check file size
                     if os.path.getsize(file_path) > 250000:
-                        raise ValueError("File size exceeds limit")
+                        raise ValueError(2)
 
                     # Open image to check further rules
-                    with Image.open(file_path) as image:
+                    with Image.open(file_path) as img:
                         # Rule 3: Validate image can be read
                         # Rule 4: Check image shape
-                        if image.mode not in ["RGB", "L"]:
-                            raise ValueError("Invalid image mode")
-                        if image.size[0] < 100 or image.size[1] < 100:
-                            raise ValueError("Image size is too small")
+                        if img.mode not in ["RGB", "L"]:
+                            raise ValueError(3)
+                        if img.size[0] < 100 or img.size[1] < 100:
+                            raise ValueError(4)
 
                         # Rule 5: Check variance
-                        pixels = list(image.getdata())
-                        if len(set(pixels)) == 1:
-                            raise ValueError("Image has low variance")
+                        if img.mode == "RGB":
+                            pixels = list(img.getdata())
+                            if len(set(pixels)) == 1:
+                                raise ValueError(5)
+                        else:  # Grayscale
+                            pixels = list(img.getdata())
+                            if len(set(pixels)) == 1:
+                                raise ValueError(5)
 
                         # Rule 6: Check if image has been copied already
-                        image_hash = hashlib.sha256(image.tobytes()).hexdigest()
-                        if image_hash in hashed_images:
-                            raise ValueError("Image has already been copied")
-                        hashed_images.add(image_hash)
+                        img_hash = hashlib.sha256(img.tobytes()).hexdigest()
+                        if img_hash in hashed_images:
+                            raise ValueError(6)
+                        hashed_images.add(img_hash)
 
                         # Copy valid image
                         output_filename = f"{format(valid_images_count, formatter)}.jpg"
@@ -73,16 +78,16 @@ def validate_images(
 
                         # Write label to CSV
                         label = "".join(
-                            [char for char in file.split(".")[0] if char.isalpha()]
+                            [i for i in file.split(".")[0] if i.isalpha()]
                         ).lower()
                         writer.writerow({"name": output_filename, "label": label})
 
                         valid_images_count += 1
 
-                except ValueError as error:
+                except ValueError as e:
                     # Log invalid files
                     with open(log_file, "a") as log:
-                        log.write(f"{rel_path},{str(error)}\n")
+                        log.write(f"{rel_path},{e.args[0]}\n")
 
     return valid_images_count
 
